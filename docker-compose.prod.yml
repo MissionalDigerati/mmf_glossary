@@ -9,7 +9,7 @@ services:
       - traefik_proxy
       - internal_net
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "${SITE_URL}"]
+      test: ["CMD", "curl", "-f", "http://localhost/health", "-o", "/dev/null", "-s"]
       interval: 30s
       timeout: 10s
       retries: 3

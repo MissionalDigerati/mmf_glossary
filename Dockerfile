@@ -1,6 +1,12 @@
 # Use nginx alpine for a lightweight image
 FROM nginx:alpine
 
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom nginx configuration
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
 # Copy the HTML files to nginx's default public directory
 COPY index.html /usr/share/nginx/html/
 COPY css/ /usr/share/nginx/html/css/
@@ -11,9 +17,6 @@ COPY js/ /usr/share/nginx/html/js/
 COPY favicon.ico /usr/share/nginx/html/
 COPY favicon.png /usr/share/nginx/html/
 COPY apple-touch-icon*.png /usr/share/nginx/html/
-
-# Copy custom nginx configuration if needed
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80

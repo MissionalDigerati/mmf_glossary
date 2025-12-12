@@ -1,0 +1,55 @@
+services:
+  mmf-glossary:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glossary
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+      - internal_net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "${SITE_URL}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_proxy"
+
+      # Middleware: HTTP to HTTPS redirect
+      - "traefik.http.middlewares.${TRAEFIK_APP_NAME}-redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.${TRAEFIK_APP_NAME}-redirect-to-https.redirectscheme.permanent=true"
+
+      # Middleware: WWW to non-WWW redirect (simplified regex)
+      - "traefik.http.middlewares.${TRAEFIK_APP_NAME}-redirect-www.redirectregex.regex=^https://www\\.(.*)"
+      - "traefik.http.middlewares.${TRAEFIK_APP_NAME}-redirect-www.redirectregex.replacement=https://$${1}"
+      - "traefik.http.middlewares.${TRAEFIK_APP_NAME}-redirect-www.redirectregex.permanent=true"
+
+      # HTTP router with redirect middleware
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-http.rule=Host(`${TRAEFIK_DOMAIN_NAME}`) || Host(`www.${TRAEFIK_DOMAIN_NAME}`)"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-http.entrypoints=web"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-http.middlewares=${TRAEFIK_APP_NAME}-redirect-to-https"
+
+      # Main domain (non-www) - HTTPS
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-https.rule=Host(`${TRAEFIK_DOMAIN_NAME}`)"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-https.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-https.tls=true"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-https.tls.certresolver=letsencrypt"
+
+      # WWW redirect - HTTPS
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-www-https.rule=Host(`www.${TRAEFIK_DOMAIN_NAME}`)"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-www-https.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-www-https.tls=true"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-www-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${TRAEFIK_APP_NAME}-www-https.middlewares=${TRAEFIK_APP_NAME}-redirect-www"
+
+      # Service configuration
+      - "traefik.http.services.${TRAEFIK_APP_NAME}.loadbalancer.server.port=80"
+
+networks:
+  traefik_proxy:
+    external: true
+  internal_net:
+    external: true
